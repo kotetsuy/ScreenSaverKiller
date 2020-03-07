@@ -24,7 +24,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "usbd_hid.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -34,6 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define MBUFSIZ 5
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -46,7 +47,9 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-
+static __IO uint8_t TIM1Cplt;
+static __IO uint8_t TIM2Cplt;
+static int8_t mbuf[MBUFSIZ];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -55,12 +58,12 @@ static void MX_GPIO_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-
+static void Mouse_SendData(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+extern USBD_HandleTypeDef hUsbDeviceFS;
 /* USER CODE END 0 */
 
 /**
@@ -95,7 +98,15 @@ int main(void)
   MX_TIM2_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
-
+  // Update ARR for TIM1
+  htim1.Instance->EGR |= TIM_EGR_UG;
+  __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
+  // Update ARR for TIM2
+  htim2.Instance->EGR |= TIM_EGR_UG;
+  __HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
+  // Start TIM1
+  TIM1Cplt = 0;
+  HAL_TIM_Base_Start_IT(&htim1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -105,6 +116,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  Mouse_SendData();
   }
   /* USER CODE END 3 */
 }
@@ -259,6 +271,33 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+static void Mouse_SendData(void)
+{
+	if (TIM1Cplt == 1) {
+		mbuf[0] = mbuf[2] = mbuf[3] = mbuf[4] = 0;
+		mbuf[1] = 100;
+		USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t*)mbuf, MBUFSIZ);
+		TIM1Cplt = 0;
+	}
+	if (TIM2Cplt == 1) {
+		mbuf[0] = mbuf[2] = mbuf[3] = mbuf[4] = 0;
+		mbuf[1] = -100;
+		USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t*)mbuf, MBUFSIZ);
+		TIM2Cplt = 0;
+	}
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim == &htim1) {
+		TIM1Cplt = 1;
+		HAL_TIM_Base_Start_IT(&htim2);
+	}
+	if (htim == &htim2) {
+		TIM2Cplt = 1;
+		HAL_TIM_Base_Stop_IT(&htim2);
+	}
+}
 
 /* USER CODE END 4 */
 
