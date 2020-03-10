@@ -187,6 +187,7 @@ static void MX_TIM1_Init(void)
   htim1.Init.Prescaler = 48000;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 60000;
+  //htim1.Init.Period = 2000;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 4;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
@@ -263,10 +264,22 @@ static void MX_TIM2_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : PC13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
 }
 
@@ -278,12 +291,14 @@ static void Mouse_SendData(void)
 		mbuf[1] = 100;
 		USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t*)mbuf, MBUFSIZ);
 		TIM1Cplt = 0;
+		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 	}
 	if (TIM2Cplt == 1) {
 		mbuf[0] = mbuf[2] = mbuf[3] = mbuf[4] = 0;
 		mbuf[1] = -100;
 		USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t*)mbuf, MBUFSIZ);
 		TIM2Cplt = 0;
+		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 	}
 }
 
